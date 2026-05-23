@@ -1,0 +1,2182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Minecraft Typing Racer - 3D Educational Typing Game</title>
+  <!-- Import 'Press Start 2P' from Google Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+  <!-- Import Three.js via absolute CDN -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  
+  <style>
+    /* Reset & Base Styling */
+    body, html {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      font-family: 'Press Start 2P', monospace;
+      background-color: #1a1a1a;
+      color: #ffffff;
+      user-select: none;
+    }
+
+    /* Primary Game Layout */
+    #game-container {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* 3D Canvas Container */
+    #canvas-container {
+      flex: 1;
+      position: relative;
+      width: 100%;
+      background-color: #80c0ff; /* Minecraft Sky Blue */
+    }
+
+    /* Top HUD Styling */
+    .hud-container {
+      position: absolute;
+      top: 16px;
+      left: 16px;
+      right: 16px;
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+      pointer-events: none;
+      z-index: 100;
+    }
+
+    .hud-item {
+      background-color: rgba(44, 44, 44, 0.85);
+      border: 4px solid;
+      border-color: #555 #1a1a1a #1a1a1a #555; /* Minecraft inset border */
+      padding: 10px;
+      text-align: center;
+      box-sizing: border-box;
+    }
+
+    .hud-label {
+      font-size: 10px;
+      color: #aaaaaa;
+      margin-bottom: 6px;
+      letter-spacing: 1px;
+    }
+
+    .hud-val {
+      font-size: 16px;
+      color: #ffffff;
+      text-shadow: 2px 2px 0px #000;
+      font-weight: bold;
+    }
+
+    .hud-sub {
+      font-size: 8px;
+      color: #ffff55;
+      margin-top: 4px;
+      text-shadow: 1px 1px 0px #000;
+    }
+
+    /* Timer & Progress Bar */
+    #timer-container {
+      position: absolute;
+      top: 105px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 80%;
+      max-width: 380px;
+      text-align: center;
+      z-index: 100;
+      pointer-events: none;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    #timer-label {
+      font-size: 10px;
+      color: #ffffff;
+      text-shadow: 2px 2px 0px #000;
+      letter-spacing: 1px;
+    }
+    #progress-bar-bg {
+      background-color: #2c2c2c;
+      border: 4px solid;
+      border-color: #555 #1a1a1a #1a1a1a #555; /* Minecraft inset border */
+      height: 20px;
+      box-sizing: border-box;
+      position: relative;
+    }
+    #progress-bar-fill {
+      height: 100%;
+      width: 100%;
+      background-color: #55ff55; /* Lime green like Minecraft XP bar */
+      box-shadow: inset 0 -4px 0 rgba(0,0,0,0.25);
+      transition: width 0.1s linear, background-color 0.5s ease;
+    }
+
+    /* Floating Word Bubble Overlay */
+    #word-bubble {
+      position: absolute;
+      background-color: rgba(0, 0, 0, 0.85);
+      border: 4px solid #ffffff;
+      border-radius: 8px;
+      padding: 10px 18px;
+      box-sizing: border-box;
+      pointer-events: none;
+      z-index: 150;
+      transform: translate(-50%, -100%);
+      font-size: 24px;
+      letter-spacing: 4px;
+      white-space: nowrap;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      box-shadow: 0 8px 16px rgba(0,0,0,0.5);
+    }
+
+    /* Character states inside bubble */
+    .char-typed {
+      color: #55ff55; /* Minecraft Green */
+      text-shadow: 0 0 10px rgba(85, 255, 85, 0.8), 2px 2px 0px #111;
+    }
+    .char-target {
+      color: #ffff55; /* Minecraft Yellow */
+      text-shadow: 0 0 12px rgba(255, 255, 85, 0.9), 2px 2px 0px #111;
+      display: inline-block;
+      animation: target-char-bounce 0.3s infinite alternate;
+    }
+    .char-target.char-typo {
+      color: #ff5555; /* Minecraft Red */
+      text-shadow: 0 0 15px rgba(255, 85, 85, 1), 2px 2px 0px #111;
+      animation: shake 0.15s infinite;
+    }
+    .char-upcoming {
+      color: #e0e0e0;
+      text-shadow: 2px 2px 0px #111;
+    }
+
+    /* Target Key Shake */
+    #word-bubble.bubble-shake {
+      animation: bubble-container-shake 0.25s;
+    }
+
+    /* Speed Milestone Screen Overlay */
+    #milestone-popup {
+      position: absolute;
+      top: 35%;
+      left: 50%;
+      transform: translate(-50%, -50%) scale(0);
+      font-size: 26px;
+      text-shadow: 4px 4px 0px #000, 0 0 25px rgba(255, 255, 85, 0.6);
+      pointer-events: none;
+      z-index: 200;
+      transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.3s;
+      opacity: 0;
+      white-space: nowrap;
+      font-weight: bold;
+    }
+    #milestone-popup.show {
+      transform: translate(-50%, -50%) scale(1);
+      opacity: 1;
+    }
+
+    /* Bottom Control Panel */
+    #bottom-panel {
+      background-color: #3c3c3c;
+      border-top: 6px solid #555555;
+      outline: 6px solid #1a1a1a;
+      outline-offset: -12px;
+      padding: 22px 24px 16px 24px;
+      box-sizing: border-box;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+      z-index: 50;
+    }
+
+    /* Mode Selector */
+    .mode-selector-container {
+      display: flex;
+      gap: 10px;
+    }
+
+    .mc-button {
+      background-color: #7c7c7c;
+      border: 4px solid;
+      border-color: #aeaeae #4a4a4a #4a4a4a #aeaeae;
+      color: #e0e0e0;
+      font-family: 'Press Start 2P', monospace;
+      font-size: 10px;
+      padding: 10px 14px;
+      cursor: pointer;
+      box-sizing: border-box;
+      text-shadow: 2px 2px 0px #2a2a2a;
+      outline: none;
+    }
+    .mc-button:hover {
+      background-color: #8c8c8c;
+      border-color: #bebebe #5a5a5a #5a5a5a #bebebe;
+      color: #ffffff;
+    }
+    .mc-button:active {
+      border-color: #4a4a4a #aeaeae #aeaeae #4a4a4a;
+    }
+    .mc-button.active {
+      background-color: #3c5aa6; /* Blue active mode */
+      border-color: #5d7cc8 #1b306b #1b306b #5d7cc8;
+      color: #ffff55; /* golden yellow */
+    }
+
+    /* Instructional Finger Hint */
+    #finger-hint {
+      font-size: 12px;
+      color: #ffff55;
+      text-shadow: 1px 1px 0px #000;
+      margin: 2px 0;
+      height: 18px;
+    }
+
+    /* Guidance Panel containing Hands + Keyboard */
+    .guidance-panel {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 24px;
+      width: 100%;
+      max-width: 900px;
+      margin: 0 auto;
+      transition: transform 0.2s;
+    }
+
+    /* Mini Hands Visualizer */
+    .hand {
+      display: flex;
+      gap: 3px;
+      align-items: flex-end;
+      height: 84px;
+      width: 105px;
+      border: 4px solid #222;
+      border-radius: 8px;
+      background-color: rgba(0, 0, 0, 0.4);
+      padding: 6px;
+      box-sizing: border-box;
+    }
+    .finger {
+      flex: 1;
+      border: 2px solid #000;
+      border-radius: 3px 3px 0 0;
+      box-sizing: border-box;
+      transition: transform 0.1s ease, filter 0.1s ease;
+    }
+    .pinky { height: 45%; }
+    .ring { height: 70%; }
+    .middle { height: 85%; }
+    .index { height: 70%; }
+    .thumb { height: 35%; border-radius: 3px; }
+
+    /* Flashing Active Finger */
+    .finger.active-finger {
+      animation: finger-pulse 0.4s infinite alternate;
+      transform: translateY(-4px);
+      border-color: #ffffff;
+      box-shadow: 0 0 8px rgba(255, 255, 255, 0.8);
+    }
+
+    /* Keyboard Layout */
+    .keyboard-container {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .kbd-row {
+      display: flex;
+      justify-content: center;
+      gap: 4px;
+    }
+    .key {
+      width: 40px;
+      height: 40px;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'Press Start 2P', monospace;
+      font-size: 11px;
+      font-weight: bold;
+      border: 3px solid #1a1a1a;
+      border-bottom: 6px solid #1a1a1a;
+      box-sizing: border-box;
+      color: #222;
+      text-shadow: 1px 1px 0px rgba(255,255,255,0.4);
+      transition: transform 0.05s, border-bottom 0.05s;
+    }
+    .key.target-key {
+      animation: key-pulse 0.35s infinite alternate;
+      border-color: #ffffff;
+      border-bottom-color: #ffffff;
+      text-shadow: 0 0 5px #fff;
+      transform: scale(1.08) translateY(-2px);
+      z-index: 10;
+    }
+
+    /* Start / Reset Overlay */
+    #start-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(16, 16, 24, 0.94);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      color: #fff;
+      gap: 20px;
+      cursor: pointer;
+      text-align: center;
+      padding: 24px;
+      box-sizing: border-box;
+    }
+    .title-box {
+      animation: float 2s ease-in-out infinite alternate;
+    }
+    .title-main {
+      font-size: 32px;
+      color: #ffff55; /* Gold */
+      text-shadow: 4px 4px 0px #444000, 0 0 15px rgba(255,255,85,0.4);
+      margin-bottom: 8px;
+    }
+    .title-sub {
+      font-size: 14px;
+      color: #ff5555; /* Light Red */
+      text-shadow: 2px 2px 0px #440000;
+    }
+    .start-hint {
+      font-size: 12px;
+      color: #55ff55; /* Light Green */
+      animation: blink 0.8s infinite alternate;
+      text-shadow: 2px 2px 0px #004400;
+      margin: 10px 0;
+    }
+    .instructions-card {
+      max-width: 550px;
+      background-color: #2c2c2c;
+      border: 4px solid;
+      border-color: #555 #1a1a1a #1a1a1a #555;
+      padding: 18px;
+      text-align: left;
+      line-height: 1.5;
+    }
+    .instructions-card h3 {
+      margin-top: 0;
+      color: #ffff55;
+      font-size: 12px;
+      text-align: center;
+      border-bottom: 3px solid #555;
+      padding-bottom: 8px;
+      margin-bottom: 12px;
+    }
+    .instructions-card p {
+      font-size: 10px;
+      margin: 8px 0;
+      color: #e0e0e0;
+    }
+
+    /* Shadow Inset Styling */
+    .shadow-inset {
+      box-shadow: inset 4px 4px 0px rgba(0,0,0,0.35);
+    }
+
+    /* Keyframe Animations */
+    @keyframes target-char-bounce {
+      from { transform: translateY(0); }
+      to { transform: translateY(-4px); }
+    }
+    @keyframes shake {
+      0% { transform: translateX(0); }
+      25% { transform: translateX(-3px); }
+      50% { transform: translateX(3px); }
+      75% { transform: translateX(-3px); }
+      100% { transform: translateX(0); }
+    }
+    @keyframes bubble-container-shake {
+      0% { transform: translate(-50%, -100%) translateX(0); }
+      20% { transform: translate(-50%, -100%) translateX(-8px); }
+      40% { transform: translate(-50%, -100%) translateX(6px); }
+      60% { transform: translate(-50%, -100%) translateX(-6px); }
+      80% { transform: translate(-50%, -100%) translateX(4px); }
+      100% { transform: translate(-50%, -100%) translateX(0); }
+    }
+    @keyframes finger-pulse {
+      from { filter: brightness(1.0); }
+      to { filter: brightness(1.4); }
+    }
+    @keyframes key-pulse {
+      from {
+        filter: brightness(1.05) saturate(1.1);
+        box-shadow: 0 0 4px #fff;
+      }
+      to {
+        filter: brightness(1.35) saturate(1.3);
+        box-shadow: 0 0 12px #fff;
+      }
+    }
+    @keyframes float {
+      from { transform: translateY(0px); }
+      to { transform: translateY(-8px); }
+    }
+    @keyframes blink {
+      from { opacity: 0.3; }
+      to { opacity: 1.0; }
+    }
+
+    /* Responsive scaling of guidance bottom-panel */
+    @media (max-width: 900px) {
+      .guidance-panel { transform: scale(0.85); }
+    }
+    @media (max-width: 760px) {
+      .guidance-panel { transform: scale(0.7); }
+    }
+    @media (max-width: 600px) {
+      .guidance-panel { transform: scale(0.55); }
+    }
+  </style>
+</head>
+<body>
+
+  <div id="game-container">
+    <!-- Top Canvas Window -->
+    <div id="canvas-container">
+      <!-- Top HUD Grid -->
+      <div class="hud-container">
+        <div class="hud-item shadow-inset">
+          <div class="hud-label">SCORE</div>
+          <div class="hud-val" id="score-val">00000</div>
+        </div>
+        <div class="hud-item shadow-inset">
+          <div class="hud-label">DRIVING SPEED</div>
+          <div class="hud-val" id="wpm-val" style="color: #ffff55;">0 WPM</div>
+          <div class="hud-sub" id="speed-milestone">CRUISING 🚙</div>
+        </div>
+        <div class="hud-item shadow-inset">
+          <div class="hud-label">WORDS</div>
+          <div class="hud-val" id="words-val">0</div>
+        </div>
+        <div class="hud-item shadow-inset">
+          <div class="hud-label">ACCURACY</div>
+          <div class="hud-val" id="accuracy-val" style="color: #55ff55;">100%</div>
+        </div>
+      </div>
+
+      <!-- Floating Timer & Progress Bar -->
+      <div id="timer-container">
+        <div id="timer-label">TIME LEFT: 60s</div>
+        <div id="progress-bar-bg" class="shadow-inset">
+          <div id="progress-bar-fill"></div>
+        </div>
+      </div>
+
+      <!-- Floating Target Word Bubble -->
+      <div id="word-bubble"></div>
+
+      <!-- High Speed Milestone Popups -->
+      <div id="milestone-popup"></div>
+    </div>
+
+    <!-- Bottom Controls & Keyboard Panel -->
+    <div id="bottom-panel">
+      <!-- Mode Selector -->
+      <div class="mode-selector-container">
+        <button class="mc-button mode-btn" onclick="setMode('home_row', this)">🏠 HOME ROW</button>
+        <button class="mc-button mode-btn active" onclick="setMode('three_letter', this)">🦊 3 LETTERS</button>
+        <button class="mc-button mode-btn" onclick="setMode('four_letter', this)">🚀 4 LETTERS</button>
+        <button class="mc-button mode-btn" onclick="setMode('mix', this)">🌟 MIX ALL</button>
+      </div>
+
+      <!-- On Screen Key Finger Prompt -->
+      <div id="finger-hint">👉 Use your finger!</div>
+
+      <!-- Guidance Layout -->
+      <div class="guidance-panel">
+        <!-- Left Hand -->
+        <div class="hand left-hand">
+          <div class="finger pinky L5" style="background-color: #ffb3ba;" title="Left Pinky"></div>
+          <div class="finger ring L4" style="background-color: #baffc9;" title="Left Ring"></div>
+          <div class="finger middle L3" style="background-color: #bae1ff;" title="Left Middle"></div>
+          <div class="finger index L2" style="background-color: #ffffba;" title="Left Index"></div>
+          <div class="finger thumb L1" style="background-color: #ffdfba;" title="Left Thumb"></div>
+        </div>
+
+        <!-- Virtual Keyboard Grid -->
+        <div class="keyboard-container">
+          <!-- Row 1 -->
+          <div class="kbd-row">
+            <div class="key" data-key="Q">Q</div>
+            <div class="key" data-key="W">W</div>
+            <div class="key" data-key="E">E</div>
+            <div class="key" data-key="R">R</div>
+            <div class="key" data-key="T">T</div>
+            <div class="key" data-key="Y">Y</div>
+            <div class="key" data-key="U">U</div>
+            <div class="key" data-key="I">I</div>
+            <div class="key" data-key="O">O</div>
+            <div class="key" data-key="P">P</div>
+          </div>
+          <!-- Row 2 -->
+          <div class="kbd-row">
+            <div class="key" data-key="A">A</div>
+            <div class="key" data-key="S">S</div>
+            <div class="key" data-key="D">D</div>
+            <div class="key" data-key="F">F</div>
+            <div class="key" data-key="G">G</div>
+            <div class="key" data-key="H">H</div>
+            <div class="key" data-key="J">J</div>
+            <div class="key" data-key="K">K</div>
+            <div class="key" data-key="L">L</div>
+            <div class="key" data-key=";">;</div>
+          </div>
+          <!-- Row 3 -->
+          <div class="kbd-row" style="padding-right: 15px;">
+            <div class="key" data-key="Z">Z</div>
+            <div class="key" data-key="X">X</div>
+            <div class="key" data-key="C">C</div>
+            <div class="key" data-key="V">V</div>
+            <div class="key" data-key="B">B</div>
+            <div class="key" data-key="N">N</div>
+            <div class="key" data-key="M">M</div>
+          </div>
+        </div>
+
+        <!-- Right Hand -->
+        <div class="hand right-hand">
+          <div class="finger thumb R1" style="background-color: #ffdfba;" title="Right Thumb"></div>
+          <div class="finger index R2" style="background-color: #ffffba;" title="Right Index"></div>
+          <div class="finger middle R3" style="background-color: #bae1ff;" title="Right Middle"></div>
+          <div class="finger ring R4" style="background-color: #baffc9;" title="Right Ring"></div>
+          <div class="finger pinky R5" style="background-color: #ffb3ba;" title="Right Pinky"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Big Startup Screen Overlay -->
+  <div id="start-overlay" onclick="startGame()">
+    <div class="title-box">
+      <div class="title-main">TYPING RACER</div>
+      <div class="title-sub">3D MINECRAFT STYLE</div>
+    </div>
+    <div class="start-hint">CLICK HERE or PRESS ANY KEY TO START RACING!</div>
+    <div class="instructions-card shadow-inset">
+      <h3>LEARN TO TYPE THE FUN WAY!</h3>
+      <p>🏎️ <strong>DRIVE & RACE</strong>: Type floating letters above your red racer to speed down the track! Complete as many words as you can in <strong>60 seconds</strong>!</p>
+      <p>🦁 <strong>CUTE ANIMALS</strong>: Complete words to summon <strong>Cheetahs, Pigs, and Sheep</strong> to run alongside you and celebrate your typing skills!</p>
+      <p>⌨️ <strong>GUIDANCE</strong>: Watch the color-coded fingers and keyboard below. Learn how to type with all 10 fingers!</p>
+      <p>💥 <strong>CONFETTI</strong>: Finish words perfectly to trigger awesome fireworks blocks and gain bonus score combo!</p>
+    </div>
+  </div>
+
+  <script>
+    // --- 1. Keyboard Finger Mapping Configuration ---
+    const fingerConfig = {
+      'Q': { finger: 'L5', label: 'Left Pinky Finger', color: '#ffb3ba' },
+      'A': { finger: 'L5', label: 'Left Pinky Finger', color: '#ffb3ba' },
+      'Z': { finger: 'L5', label: 'Left Pinky Finger', color: '#ffb3ba' },
+      'W': { finger: 'L4', label: 'Left Ring Finger', color: '#baffc9' },
+      'S': { finger: 'L4', label: 'Left Ring Finger', color: '#baffc9' },
+      'X': { finger: 'L4', label: 'Left Ring Finger', color: '#baffc9' },
+      'E': { finger: 'L3', label: 'Left Middle Finger', color: '#bae1ff' },
+      'D': { finger: 'L3', label: 'Left Middle Finger', color: '#bae1ff' },
+      'C': { finger: 'L3', label: 'Left Middle Finger', color: '#bae1ff' },
+      'R': { finger: 'L2', label: 'Left Index Finger', color: '#ffffba' },
+      'F': { finger: 'L2', label: 'Left Index Finger', color: '#ffffba' },
+      'V': { finger: 'L2', label: 'Left Index Finger', color: '#ffffba' },
+      'T': { finger: 'L2', label: 'Left Index Finger', color: '#ffffba' },
+      'G': { finger: 'L2', label: 'Left Index Finger', color: '#ffffba' },
+      'B': { finger: 'L2', label: 'Left Index Finger', color: '#ffffba' },
+      'Y': { finger: 'R2', label: 'Right Index Finger', color: '#ffffba' },
+      'H': { finger: 'R2', label: 'Right Index Finger', color: '#ffffba' },
+      'N': { finger: 'R2', label: 'Right Index Finger', color: '#ffffba' },
+      'U': { finger: 'R2', label: 'Right Index Finger', color: '#ffffba' },
+      'J': { finger: 'R2', label: 'Right Index Finger', color: '#ffffba' },
+      'M': { finger: 'R2', label: 'Right Index Finger', color: '#ffffba' },
+      'I': { finger: 'R3', label: 'Right Middle Finger', color: '#bae1ff' },
+      'K': { finger: 'R3', label: 'Right Middle Finger', color: '#bae1ff' },
+      ',': { finger: 'R3', label: 'Right Middle Finger', color: '#bae1ff' },
+      'O': { finger: 'R4', label: 'Right Ring Finger', color: '#baffc9' },
+      'L': { finger: 'R4', label: 'Right Ring Finger', color: '#baffc9' },
+      '.': { finger: 'R4', label: 'Right Ring Finger', color: '#baffc9' },
+      'P': { finger: 'R5', label: 'Right Pinky Finger', color: '#ffb3ba' },
+      ';': { finger: 'R5', label: 'Right Pinky Finger', color: '#ffb3ba' },
+      '/': { finger: 'R5', label: 'Right Pinky Finger', color: '#ffb3ba' }
+    };
+
+    // Word Lists for 7-year-olds
+    const WORD_LISTS = {
+      home_row: ["SAD", "LAD", "FAD", "ALAS", "FALL", "GLAD", "HALF", "DASH", "SALAD"],
+      three_letter: ["CAT", "RUN", "SUN", "RED", "DOG", "PIG", "FOX", "BOX", "TOY", "CAR", "BUS", "FLY", "HAT", "CUP", "BAG", "ZIP", "BED", "LOG", "NET", "MAP", "PEN", "WET", "HOT", "BIG", "OWL", "BAT", "HEN", "COW"],
+      four_letter: ["JUMP", "FAST", "SLOW", "PLAY", "BLUE", "PINK", "TREE", "SNOW", "WIND", "RAIN", "STAR", "MOON", "FIRE", "FROG", "DUCK", "FISH", "BIRD", "LEAF", "GAME", "BABY", "LION", "BEAR", "WOLF", "ZOOM", "GOLD", "LUCK"],
+      mix: []
+    };
+    WORD_LISTS.mix = [...WORD_LISTS.home_row, ...WORD_LISTS.three_letter, ...WORD_LISTS.four_letter];
+
+    // --- 2. Game Core State Variables ---
+    let gameStarted = false;
+    let currentMode = 'three_letter';
+    let currentWord = "";
+    let currentIndex = 0;
+    
+    let score = 0;
+    let combo = 0;
+    let wordsTyped = 0;
+    let typos = 0;
+    let totalKeystrokes = 0;
+    let rollingWPM = 0;
+    let recentKeystrokes = [];
+    let typoState = false;
+
+    // Timer Countdown States
+    let timeLeft = 60;
+    let timerInterval = null;
+    let originalOverlayHTML = "";
+
+    // --- 3. Three.js Engine Variables ---
+    let scene, camera, renderer, canvasContainer;
+    let segmentGroups = []; // Array of 10 looping track segments
+    const segmentLength = 10;
+    const numSegments = 10;
+    
+    // Speed tracking
+    let carSpeed = 0;
+    const maxSpeed = 16; // Maximum movement speed
+
+    // Materials / Textures references
+    let grassTexture, stoneTexture, trunkTexture, leavesTexture, wheelTexture, redChassisTexture, lightTexture, cloudTexture;
+    let cheetahTexture, pigTexture, sheepTexture; // Celebration Animal textures
+    let trunkMat, leavesMat; // shared reusable mats
+
+    // Exhaust Smoke, Confetti, and Celebration Animals arrays
+    const smokeParticles = [];
+    const confettiParticles = [];
+    const activeAnimals = [];
+
+    // --- 4. Web Audio Synthesis Functions ---
+    let audioCtx = null;
+    let backgroundMusicTimeout = null;
+
+    function initAudio() {
+      if (!audioCtx) {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      }
+      if (audioCtx && audioCtx.state === 'suspended') {
+        audioCtx.resume();
+      }
+    }
+
+    function stopBackgroundMusic() {
+      if (backgroundMusicTimeout) {
+        clearTimeout(backgroundMusicTimeout);
+        backgroundMusicTimeout = null;
+      }
+    }
+
+    function playMiniMusicNote(frequency, duration, type = 'triangle', volume = 0.05) {
+      if (!audioCtx) return;
+      const now = audioCtx.currentTime;
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+
+      osc.type = type;
+      osc.frequency.setValueAtTime(frequency, now);
+
+      gain.gain.setValueAtTime(volume, now);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + duration);
+
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      osc.start(now);
+      osc.stop(now + duration);
+    }
+
+    function startBackgroundMusic() {
+      stopBackgroundMusic();
+      initAudio();
+      if (!audioCtx) return;
+
+      const melody = [261.63, 329.63, 392.0, 523.25, 392.0, 329.63, 261.63, 196.0];
+      let step = 0;
+
+      const playStep = () => {
+        const note = melody[step];
+        playMiniMusicNote(note, 0.22, 'triangle', 0.035);
+        step = (step + 1) % melody.length;
+        backgroundMusicTimeout = setTimeout(playStep, 260);
+      };
+
+      playStep();
+    }
+
+    // Play tactile mechanical key click
+    function playClick() {
+      initAudio();
+      if (!audioCtx) return;
+      const now = audioCtx.currentTime;
+
+      // Click transient
+      const osc1 = audioCtx.createOscillator();
+      const gain1 = audioCtx.createGain();
+      osc1.type = 'sine';
+      osc1.frequency.setValueAtTime(1500, now);
+      osc1.frequency.exponentialRampToValueAtTime(500, now + 0.02);
+      gain1.gain.setValueAtTime(0.12, now);
+      gain1.gain.exponentialRampToValueAtTime(0.001, now + 0.02);
+      osc1.connect(gain1);
+      gain1.connect(audioCtx.destination);
+      osc1.start(now);
+      osc1.stop(now + 0.03);
+
+      // Mechanical body thud
+      const osc2 = audioCtx.createOscillator();
+      const gain2 = audioCtx.createGain();
+      osc2.type = 'triangle';
+      osc2.frequency.setValueAtTime(140, now);
+      osc2.frequency.exponentialRampToValueAtTime(45, now + 0.05);
+      gain2.gain.setValueAtTime(0.2, now);
+      gain2.gain.exponentialRampToValueAtTime(0.001, now + 0.05);
+      osc2.connect(gain2);
+      gain2.connect(audioCtx.destination);
+      osc2.start(now);
+      osc2.stop(now + 0.06);
+    }
+
+    // Play buzz/error sound on typo
+    function playTypo() {
+      initAudio();
+      if (!audioCtx) return;
+      const now = audioCtx.currentTime;
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(110, now);
+      osc.frequency.linearRampToValueAtTime(75, now + 0.16);
+      
+      gain.gain.setValueAtTime(0.15, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.18);
+      
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      osc.start(now);
+      osc.stop(now + 0.2);
+    }
+
+    // Play ascending magical arcade chime on word completion
+    function playWordComplete() {
+      initAudio();
+      if (!audioCtx) return;
+      const now = audioCtx.currentTime;
+      const notes = [523.25, 659.25, 783.99, 1046.50]; // C5, E5, G5, C6 arpeggio
+
+      notes.forEach((freq, idx) => {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'square';
+        osc.frequency.setValueAtTime(freq, now + idx * 0.06);
+        
+        gain.gain.setValueAtTime(0.06, now + idx * 0.06);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.06 + 0.14);
+        
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start(now + idx * 0.06);
+        osc.stop(now + idx * 0.06 + 0.16);
+      });
+    }
+
+    // Play grand triumphant sequence on Game Over
+    function playGameOverSound() {
+      initAudio();
+      if (!audioCtx) return;
+      const now = audioCtx.currentTime;
+      const notes = [261.63, 329.63, 392.00, 523.25, 659.25, 783.99, 1046.50]; // C4, E4, G4, C5, E5, G5, C6
+      
+      notes.forEach((freq, idx) => {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(freq, now + idx * 0.09);
+        
+        gain.gain.setValueAtTime(0.12, now + idx * 0.09);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.09 + 0.25);
+        
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start(now + idx * 0.09);
+        osc.stop(now + idx * 0.09 + 0.35);
+      });
+
+      // Sustain a beautiful warm final Major Chord
+      const chord = [523.25, 659.25, 783.99, 1046.50];
+      chord.forEach(freq => {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(freq, now + 0.75);
+        
+        gain.gain.setValueAtTime(0.1, now + 0.75);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.75 + 1.2);
+        
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start(now + 0.75);
+        osc.stop(now + 0.75 + 1.5);
+      });
+    }
+
+    // --- 5. Generative Pixel Canvas Texture Creation ---
+    function createPixelTexture(drawFn, size = 16) { 
+      const canvas = document.createElement('canvas');
+      canvas.width = size;
+      canvas.height = size;
+      const ctx = canvas.getContext('2d');
+      drawFn(ctx, size);
+      const texture = new THREE.CanvasTexture(canvas);
+      texture.magFilter = THREE.NearestFilter; // keeps pixel boundaries ultra crisp
+      texture.minFilter = THREE.NearestFilter;
+      texture.wrapS = THREE.RepeatWrapping;
+      texture.wrapT = THREE.RepeatWrapping;
+      return texture;
+    }
+
+    function initGenerativeTextures() {
+      // Grass texture (organic green noise pixels)
+      grassTexture = createPixelTexture((ctx, s) => {
+        ctx.fillStyle = '#4a9540'; // Minecraft base green
+        ctx.fillRect(0, 0, s, s);
+        for (let i = 0; i < s * s * 0.35; i++) {
+          ctx.fillStyle = Math.random() > 0.5 ? '#55a64b' : '#3d8335';
+          const x = Math.floor(Math.random() * s);
+          const y = Math.floor(Math.random() * s);
+          ctx.fillRect(x, y, 1, 1);
+        }
+      });
+
+      // Stone block road texture (shades of gray with deep bevel border)
+      stoneTexture = createPixelTexture((ctx, s) => {
+        ctx.fillStyle = '#737373'; // Medium Gray
+        ctx.fillRect(0, 0, s, s);
+        ctx.fillStyle = '#858585'; // Light bevel highlight
+        ctx.fillRect(0, 0, s, 1);
+        ctx.fillRect(0, 0, 1, s);
+        ctx.fillStyle = '#5c5c5c'; // Dark bevel shadow
+        ctx.fillRect(0, s - 1, s, 1);
+        ctx.fillRect(s - 1, 0, 1, s);
+        // Random noisy dots
+        for (let i = 0; i < 4; i++) {
+          ctx.fillStyle = '#666666';
+          const x = Math.floor(Math.random() * (s - 2)) + 1;
+          const y = Math.floor(Math.random() * (s - 2)) + 1;
+          ctx.fillRect(x, y, 2, 1);
+        }
+      });
+
+      // Trunk bark texture (dark brown vertical stripes)
+      trunkTexture = createPixelTexture((ctx, s) => {
+        ctx.fillStyle = '#5c4033'; // Dark brown
+        ctx.fillRect(0, 0, s, s);
+        ctx.fillStyle = '#3d2b22';
+        for (let i = 0; i < s; i += 4) {
+          ctx.fillRect(i, 0, 2, s);
+        }
+        ctx.fillStyle = '#7a5745';
+        for (let i = 2; i < s; i += 4) {
+          ctx.fillRect(i, 0, 1, s);
+        }
+      });
+
+      // Foliage leaves texture (green block checkers)
+      leavesTexture = createPixelTexture((ctx, s) => {
+        ctx.fillStyle = '#2e5c1e'; // Leaves dark green
+        ctx.fillRect(0, 0, s, s);
+        for (let i = 0; i < s * s * 0.4; i++) {
+          ctx.fillStyle = Math.random() > 0.5 ? '#3b7527' : '#224416';
+          const x = Math.floor(Math.random() * s);
+          const y = Math.floor(Math.random() * s);
+          ctx.fillRect(x, y, 1, 1);
+        }
+      });
+
+      // Red sports chassis texture
+      redChassisTexture = createPixelTexture((ctx, s) => {
+        ctx.fillStyle = '#cc1c1c'; // Vibrant Red
+        ctx.fillRect(0, 0, s, s);
+        ctx.fillStyle = '#ef3232'; // Highlights
+        ctx.fillRect(0, 0, s, 1);
+        ctx.fillRect(0, 0, 1, s);
+        ctx.fillStyle = '#991111'; // Shading
+        ctx.fillRect(0, s - 1, s, 1);
+        ctx.fillRect(s - 1, 0, 1, s);
+      });
+
+      // Yellow headlight texture
+      lightTexture = createPixelTexture((ctx, s) => {
+        ctx.fillStyle = '#ffea00';
+        ctx.fillRect(0, 0, s, s);
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(3, 3, s - 6, s - 6);
+      });
+
+      // Dark rubber tire / wheel texture
+      wheelTexture = createPixelTexture((ctx, s) => {
+        ctx.fillStyle = '#1c1c1c';
+        ctx.fillRect(0, 0, s, s);
+        ctx.fillStyle = '#2d2d2d';
+        ctx.fillRect(2, 2, s - 4, s - 4);
+        ctx.fillStyle = '#616161'; // Light metal central hubcap
+        ctx.fillRect(6, 6, 4, 4);
+      });
+
+      // Pixelated cloud texture
+      cloudTexture = createPixelTexture((ctx, s) => {
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, s, s);
+        ctx.fillStyle = '#e8e8e8'; // Shading
+        ctx.fillRect(0, s - 2, s, 2);
+        ctx.fillRect(s - 2, 0, 2, s);
+      });
+
+      // --- Celebration Animals Textures ---
+      // Cheetah golden-yellow pelt with spots
+      cheetahTexture = createPixelTexture((ctx, s) => {
+        ctx.fillStyle = '#f09819'; // Rich cheetah gold/orange
+        ctx.fillRect(0, 0, s, s);
+        ctx.fillStyle = '#221603'; // Very dark spotted brown
+        for (let i = 0; i < 15; i++) {
+          const x = Math.floor(Math.random() * (s - 1));
+          const y = Math.floor(Math.random() * (s - 1));
+          ctx.fillRect(x, y, 2, 2);
+          ctx.fillRect(x + 1, y, 1, 1);
+        }
+      });
+
+      // Cute pink pig texture
+      pigTexture = createPixelTexture((ctx, s) => {
+        ctx.fillStyle = '#ff9ebb'; // Cute pink
+        ctx.fillRect(0, 0, s, s);
+        ctx.fillStyle = '#ff7ca3'; // Slightly darker spots/shading
+        for (let i = 0; i < 8; i++) {
+          const x = Math.floor(Math.random() * s);
+          const y = Math.floor(Math.random() * s);
+          ctx.fillRect(x, y, 2, 1);
+        }
+      });
+
+      // Fluffy wool sheep texture
+      sheepTexture = createPixelTexture((ctx, s) => {
+        ctx.fillStyle = '#f0f0f0'; // Wool white
+        ctx.fillRect(0, 0, s, s);
+        ctx.fillStyle = '#ffffff'; // Fluffy white clouds
+        for (let i = 0; i < s * s * 0.4; i++) {
+          const x = Math.floor(Math.random() * s);
+          const y = Math.floor(Math.random() * s);
+          ctx.fillRect(x, y, 1, 1);
+        }
+        ctx.fillStyle = '#d6d6d6'; // Wool shadows
+        for (let i = 0; i < s * s * 0.15; i++) {
+          const x = Math.floor(Math.random() * s);
+          const y = Math.floor(Math.random() * s);
+          ctx.fillRect(x, y, 1, 1);
+        }
+      });
+    }
+
+    // --- 6. Minecraft Scenic Mesh Generators ---
+    function createTree() {
+      const treeGroup = new THREE.Group();
+      treeGroup.name = 'tree';
+
+      // Trunk: tall narrow box
+      const trunkGeo = new THREE.BoxGeometry(0.7, 3.2, 0.7);
+      const trunkMesh = new THREE.Mesh(trunkGeo, trunkMat);
+      trunkMesh.position.y = 1.6; // Sit perfectly flat on ground
+      treeGroup.add(trunkMesh);
+
+      // Leaves: stacked overlapping blocky boxes
+      const leavesGeo1 = new THREE.BoxGeometry(2.6, 2.6, 2.6);
+      const leaves1 = new THREE.Mesh(leavesGeo1, leavesMat);
+      leaves1.position.y = 3.6;
+      treeGroup.add(leaves1);
+
+      const leavesGeo2 = new THREE.BoxGeometry(1.6, 1.6, 1.6);
+      const leaves2 = new THREE.Mesh(leavesGeo2, leavesMat);
+      leaves2.position.y = 5.0;
+      treeGroup.add(leaves2);
+
+      return treeGroup;
+    }
+
+    function createCloud() {
+      const cloudGroup = new THREE.Group();
+      cloudGroup.name = 'cloud';
+      const cloudMat = new THREE.MeshLambertMaterial({ map: cloudTexture });
+
+      // Create a randomized puff of connected blocks
+      const numBlocks = 3 + Math.floor(Math.random() * 3);
+      for (let i = 0; i < numBlocks; i++) {
+        const w = 3 + Math.random() * 4;
+        const h = 1.2 + Math.random() * 1.5;
+        const d = 3 + Math.random() * 4;
+        const geo = new THREE.BoxGeometry(w, h, d);
+        const mesh = new THREE.Mesh(geo, cloudMat);
+        mesh.position.set(
+          (Math.random() - 0.5) * 4,
+          (Math.random() - 0.5) * 0.8,
+          (Math.random() - 0.5) * 4
+        );
+        cloudGroup.add(mesh);
+      }
+      return cloudGroup;
+    }
+
+    // --- 6b. Blocky Celebration Animal Model Factory ---
+    function createCelebrationAnimal(type) {
+      const animalGroup = new THREE.Group();
+      animalGroup.name = 'celebration-animal';
+      
+      let bodyMat, headMat, snoutMat, legMat;
+      
+      if (type === 'cheetah') {
+        bodyMat = new THREE.MeshLambertMaterial({ map: cheetahTexture });
+        headMat = new THREE.MeshLambertMaterial({ map: cheetahTexture });
+        snoutMat = new THREE.MeshLambertMaterial({ color: 0xe59410 });
+        legMat = new THREE.MeshLambertMaterial({ map: cheetahTexture });
+      } else if (type === 'pig') {
+        bodyMat = new THREE.MeshLambertMaterial({ map: pigTexture });
+        headMat = new THREE.MeshLambertMaterial({ map: pigTexture });
+        snoutMat = new THREE.MeshLambertMaterial({ color: 0xff5588 }); // dark pink snout
+        legMat = new THREE.MeshLambertMaterial({ map: pigTexture });
+      } else { // sheep
+        bodyMat = new THREE.MeshLambertMaterial({ map: sheepTexture });
+        headMat = new THREE.MeshLambertMaterial({ color: 0x444444 }); // dark block sheep face
+        snoutMat = new THREE.MeshLambertMaterial({ color: 0x222222 });
+        legMat = new THREE.MeshLambertMaterial({ color: 0x222222 }); // black legs
+      }
+
+      // 1. Body box
+      let bodyW = 0.5, bodyH = 0.55, bodyL = 1.1;
+      if (type === 'pig') { bodyW = 0.6; bodyH = 0.6; bodyL = 1.0; }
+      else if (type === 'sheep') { bodyW = 0.65; bodyH = 0.65; bodyL = 1.1; }
+      
+      const bodyGeo = new THREE.BoxGeometry(bodyW, bodyH, bodyL);
+      const bodyMesh = new THREE.Mesh(bodyGeo, bodyMat);
+      bodyMesh.position.y = bodyH / 2 + 0.45; // leaves exact height for legs
+      animalGroup.add(bodyMesh);
+
+      // 2. Head Box
+      let headS = 0.4;
+      if (type === 'pig') headS = 0.42;
+      const headGeo = new THREE.BoxGeometry(headS, headS, headS);
+      const headMesh = new THREE.Mesh(headGeo, headMat);
+      headMesh.position.set(0, bodyH + 0.45, -bodyL / 2 - headS / 4);
+      animalGroup.add(headMesh);
+
+      // Snout/Muzzle
+      let snoutW = 0.16, snoutH = 0.12, snoutL = 0.15;
+      if (type === 'pig') { snoutW = 0.25; snoutH = 0.16; snoutL = 0.12; }
+      const snoutGeo = new THREE.BoxGeometry(snoutW, snoutH, snoutL);
+      const snoutMesh = new THREE.Mesh(snoutGeo, snoutMat);
+      snoutMesh.position.set(0, bodyH + 0.45 - 0.05, -bodyL / 2 - headS / 4 - headS / 2 - snoutL / 2);
+      animalGroup.add(snoutMesh);
+
+      // Ears (optional details)
+      if (type === 'cheetah') {
+        const earGeo = new THREE.BoxGeometry(0.12, 0.12, 0.06);
+        const earL = new THREE.Mesh(earGeo, bodyMat);
+        earL.position.set(-0.16, bodyH + 0.45 + headS/4, -bodyL/2 - headS/4);
+        const earR = new THREE.Mesh(earGeo, bodyMat);
+        earR.position.set(0.16, bodyH + 0.45 + headS/4, -bodyL/2 - headS/4);
+        animalGroup.add(earL);
+        animalGroup.add(earR);
+      } else if (type === 'pig') {
+        const earGeo = new THREE.BoxGeometry(0.12, 0.08, 0.12);
+        const earL = new THREE.Mesh(earGeo, bodyMat);
+        earL.position.set(-0.18, bodyH + 0.45 + headS/4, -bodyL/2 - headS/4);
+        const earR = new THREE.Mesh(earGeo, bodyMat);
+        earR.position.set(0.18, bodyH + 0.45 + headS/4, -bodyL/2 - headS/4);
+        animalGroup.add(earL);
+        animalGroup.add(earR);
+      }
+
+      // Tail (Cheetah)
+      if (type === 'cheetah') {
+        const tailGeo = new THREE.BoxGeometry(0.08, 0.08, 0.5);
+        const tail = new THREE.Mesh(tailGeo, bodyMat);
+        tail.position.set(0, bodyH + 0.35, bodyL / 2 + 0.2);
+        tail.rotation.x = -0.4;
+        animalGroup.add(tail);
+      }
+
+      // 3. Legs
+      let legW = 0.14, legH = 0.45;
+      if (type === 'pig') { legW = 0.15; legH = 0.35; }
+      else if (type === 'sheep') { legW = 0.15; legH = 0.4; }
+      
+      const legGeo = new THREE.BoxGeometry(legW, legH, legW);
+      
+      // Create pivot grouped leg so leg rotates around its top hip/shoulder boundary
+      function makeLeg(posX, posZ) {
+        const pivot = new THREE.Group();
+        pivot.position.set(posX, legH, posZ);
+        
+        const legMesh = new THREE.Mesh(legGeo, legMat);
+        legMesh.position.y = -legH / 2;
+        pivot.add(legMesh);
+        
+        animalGroup.add(pivot);
+        return pivot;
+      }
+
+      const legFL = makeLeg(-bodyW / 2 + legW / 2, -bodyL / 2 + legW / 2);
+      const legFR = makeLeg(bodyW / 2 - legW / 2, -bodyL / 2 + legW / 2);
+      const legBL = makeLeg(-bodyW / 2 + legW / 2, bodyL / 2 - legW / 2);
+      const legBR = makeLeg(bodyW / 2 - legW / 2, bodyL / 2 - legW / 2);
+
+      return {
+        group: animalGroup,
+        legs: { fl: legFL, fr: legFR, bl: legBL, br: legBR },
+        type: type
+      };
+    }
+
+    // --- 7. Looping 3D Track Builder ---
+    function buildTrackSegment(zPos, index) {
+      const segmentGroup = new THREE.Group();
+      segmentGroup.position.z = zPos;
+
+      // Gray Stone Road: width 6, depth 10
+      const roadTex = stoneTexture.clone();
+      roadTex.repeat.set(6, 10);
+      const roadMat = new THREE.MeshLambertMaterial({ map: roadTex });
+      const roadGeo = new THREE.BoxGeometry(6, 1, 10);
+      const roadMesh = new THREE.Mesh(roadGeo, roadMat);
+      roadMesh.position.set(0, -0.5, 0);
+      segmentGroup.add(roadMesh);
+
+      // Alternating Red & White Checkered Curbs on sides
+      const redCurbMat = new THREE.MeshLambertMaterial({ map: redChassisTexture });
+      const whiteCurbMat = new THREE.MeshLambertMaterial({ color: 0xefefef });
+      const curbGeo = new THREE.BoxGeometry(0.5, 1.06, 1.0); // Slightly taller than road
+      
+      for (let offsetZ = -4.5; offsetZ <= 4.5; offsetZ += 1.0) {
+        const isRed = (Math.round(offsetZ + 4.5) + index) % 2 === 0;
+        const curbMat = isRed ? redCurbMat : whiteCurbMat;
+        
+        const leftCurb = new THREE.Mesh(curbGeo, curbMat);
+        leftCurb.position.set(-3.25, -0.47, offsetZ);
+        segmentGroup.add(leftCurb);
+
+        const rightCurb = new THREE.Mesh(curbGeo, curbMat);
+        rightCurb.position.set(3.25, -0.47, offsetZ);
+        segmentGroup.add(rightCurb);
+      }
+
+      // Green Grass Lands flanking road
+      const grassTexLeft = grassTexture.clone();
+      grassTexLeft.repeat.set(12, 10);
+      const grassMat = new THREE.MeshLambertMaterial({ map: grassTexLeft });
+      const grassGeo = new THREE.BoxGeometry(12, 1, 10);
+
+      const leftGrass = new THREE.Mesh(grassGeo, grassMat);
+      leftGrass.position.set(-9.5, -0.5, 0);
+      segmentGroup.add(leftGrass);
+
+      const rightGrass = new THREE.Mesh(grassGeo, grassMat);
+      rightGrass.position.set(9.5, -0.5, 0);
+      segmentGroup.add(rightGrass);
+
+      // Add a couple of trees on either grass side
+      const leftTree = createTree();
+      leftTree.position.set(-(5 + Math.random() * 6), 0, -4 + Math.random() * 8);
+      segmentGroup.add(leftTree);
+
+      const rightTree = createTree();
+      rightTree.position.set((5 + Math.random() * 6), 0, -4 + Math.random() * 8);
+      segmentGroup.add(rightTree);
+
+      // Random Clouds floating high in the sky
+      if (Math.random() > 0.4) {
+        const cloud = createCloud();
+        cloud.position.set(
+          (Math.random() - 0.5) * 35,
+          13 + Math.random() * 4,
+          -4 + Math.random() * 8
+        );
+        segmentGroup.add(cloud);
+      }
+
+      scene.add(segmentGroup);
+      segmentGroups.push(segmentGroup);
+    }
+
+    // Refresh tree and cloud positions when a track segment is looped to prevent patterns
+    function randomizeSegmentScenery(segment) {
+      segment.children.forEach(child => {
+        if (child.name === 'tree') {
+          // Keep trees on sides of road
+          const sign = child.position.x < 0 ? -1 : 1;
+          child.position.x = sign * (5 + Math.random() * 6);
+          child.position.z = -4 + Math.random() * 8;
+        } else if (child.name === 'cloud') {
+          child.position.set(
+            (Math.random() - 0.5) * 35,
+            13 + Math.random() * 4,
+            -4 + Math.random() * 8
+          );
+        }
+      });
+    }
+
+    // --- 8. The Car Model Assembler ---
+    let carGroup, wheelFL, wheelFR, wheelRL, wheelRR;
+    
+    function buildCar() {
+      carGroup = new THREE.Group();
+      
+      const bodyMat = new THREE.MeshLambertMaterial({ map: redChassisTexture });
+      const wheelMat = new THREE.MeshLambertMaterial({ map: wheelTexture });
+      const glassMat = new THREE.MeshLambertMaterial({ color: 0x88ddff, transparent: true, opacity: 0.75 });
+      const lightMat = new THREE.MeshBasicMaterial({ map: lightTexture });
+      const tailLightMat = new THREE.MeshBasicMaterial({ color: 0xff2222 });
+      const darkMat = new THREE.MeshLambertMaterial({ color: 0x222222 });
+      
+      // Chassis Bottom: 1.6 x 0.65 x 3.0
+      const bodyGeo = new THREE.BoxGeometry(1.6, 0.65, 3.0);
+      const bodyMesh = new THREE.Mesh(bodyGeo, bodyMat);
+      bodyMesh.position.y = 0.5;
+      carGroup.add(bodyMesh);
+
+      // Cabin Glass Top: 1.3 x 0.6 x 1.4
+      const cabinGeo = new THREE.BoxGeometry(1.3, 0.6, 1.4);
+      const cabinMesh = new THREE.Mesh(cabinGeo, bodyMat);
+      cabinMesh.position.set(0, 1.12, 0.3);
+      carGroup.add(cabinMesh);
+
+      // Windshield: Translucent Cyan
+      const windshieldGeo = new THREE.BoxGeometry(1.22, 0.5, 0.1);
+      const windshield = new THREE.Mesh(windshieldGeo, glassMat);
+      windshield.position.set(0, 1.12, -0.42);
+      carGroup.add(windshield);
+
+      // Side Windows: Left and Right
+      const windowGeo = new THREE.BoxGeometry(0.05, 0.42, 0.8);
+      const leftWin = new THREE.Mesh(windowGeo, glassMat);
+      leftWin.position.set(-0.66, 1.12, 0.3);
+      const rightWin = new THREE.Mesh(windowGeo, glassMat);
+      rightWin.position.set(0.66, 1.12, 0.3);
+      carGroup.add(leftWin);
+      carGroup.add(rightWin);
+
+      // Headlights (glowing yellow cubes front)
+      const headlightGeo = new THREE.BoxGeometry(0.3, 0.2, 0.1);
+      const leftLight = new THREE.Mesh(headlightGeo, lightMat);
+      leftLight.position.set(-0.55, 0.5, -1.51);
+      const rightLight = new THREE.Mesh(headlightGeo, lightMat);
+      rightLight.position.set(0.55, 0.5, -1.51);
+      carGroup.add(leftLight);
+      carGroup.add(rightLight);
+
+      // Tail lights (red lights rear)
+      const taillightGeo = new THREE.BoxGeometry(0.3, 0.15, 0.1);
+      const leftTail = new THREE.Mesh(taillightGeo, tailLightMat);
+      leftTail.position.set(-0.55, 0.5, 1.51);
+      const rightTail = new THREE.Mesh(taillightGeo, tailLightMat);
+      rightTail.position.set(0.55, 0.5, 1.51);
+      carGroup.add(leftTail);
+      carGroup.add(rightTail);
+
+      // Sports Spoiler wing
+      const spoilerGeo = new THREE.BoxGeometry(1.6, 0.08, 0.4);
+      const spoilerWing = new THREE.Mesh(spoilerGeo, darkMat);
+      spoilerWing.position.set(0, 1.25, 1.2);
+      
+      const postGeo = new THREE.BoxGeometry(0.1, 0.4, 0.1);
+      const leftPost = new THREE.Mesh(postGeo, darkMat);
+      leftPost.position.set(-0.6, 1.0, 1.2);
+      const rightPost = new THREE.Mesh(postGeo, darkMat);
+      rightPost.position.set(0.6, 1.0, 1.2);
+      carGroup.add(spoilerWing);
+      carGroup.add(leftPost);
+      carGroup.add(rightPost);
+
+      // Exhaust Pipe (smoke emitter origin point)
+      const exhaustGeo = new THREE.BoxGeometry(0.15, 0.15, 0.4);
+      const exhaust = new THREE.Mesh(exhaustGeo, darkMat);
+      exhaust.position.set(0.5, 0.22, 1.51);
+      carGroup.add(exhaust);
+
+      // 4 Boxy Wheels
+      const wheelGeo = new THREE.BoxGeometry(0.38, 0.72, 0.72);
+      
+      wheelFL = new THREE.Mesh(wheelGeo, wheelMat);
+      wheelFL.position.set(-0.95, 0.36, -0.9);
+      
+      wheelFR = new THREE.Mesh(wheelGeo, wheelMat);
+      wheelFR.position.set(0.95, 0.36, -0.9);
+      
+      wheelRL = new THREE.Mesh(wheelGeo, wheelMat);
+      wheelRL.position.set(-0.95, 0.36, 0.9);
+      
+      wheelRR = new THREE.Mesh(wheelGeo, wheelMat);
+      wheelRR.position.set(0.95, 0.36, 0.9);
+
+      carGroup.add(wheelFL);
+      carGroup.add(wheelFR);
+      carGroup.add(wheelRL);
+      carGroup.add(wheelRR);
+
+      scene.add(carGroup);
+    }
+
+    // --- 9. Exhaust Smoke & Word Confetti Particles ---
+    function spawnExhaustSmoke() { 
+      const geo = new THREE.BoxGeometry(0.15, 0.15, 0.15);
+      const mat = new THREE.MeshLambertMaterial({
+        color: 0xcccccc,
+        transparent: true,
+        opacity: 0.8
+      });
+      const mesh = new THREE.Mesh(geo, mat);
+      
+      // Spawn at the position of exhaust pipe
+      mesh.position.set(0.5, 0.22, 1.55);
+      scene.add(mesh);
+
+      smokeParticles.push({
+        mesh: mesh,
+        vx: (Math.random() - 0.2) * 0.4,
+        vy: 0.4 + Math.random() * 0.4,
+        vz: 3.5 + Math.random() * 1.5, // fly backwards
+        life: 1.0
+      });
+    }
+
+    function spawnConfettiExplosion() {
+      const colors = [0xff5555, 0xffaa00, 0x55ff55, 0x55ffff, 0xff55ff, 0xffff55];
+      // 35 tiny blocky colorful stars shooting out of the car
+      for (let i = 0; i < 35; i++) {
+        const geo = new THREE.BoxGeometry(0.12, 0.12, 0.12);
+        const randColor = colors[Math.floor(Math.random() * colors.length)];
+        const mat = new THREE.MeshLambertMaterial({ color: randColor });
+        const mesh = new THREE.Mesh(geo, mat);
+        
+        mesh.position.set(
+          (Math.random() - 0.5) * 1.4,
+          0.4 + Math.random() * 0.8,
+          (Math.random() - 0.5) * 1.4
+        );
+        scene.add(mesh);
+
+        confettiParticles.push({
+          mesh: mesh,
+          vx: (Math.random() - 0.5) * 6,
+          vy: 4.5 + Math.random() * 5.5, // heavy vertical launch
+          vz: (Math.random() - 0.5) * 6,
+          rx: (Math.random() - 0.5) * 12,
+          ry: (Math.random() - 0.5) * 12,
+          life: 1.3
+        });
+      }
+    }
+
+    // Spawns little floating stars or hearts from celebrating animals!
+    function spawnAnimalCelebrationParticle(animalPos) {
+      const colors = [0xff55ff, 0xffaa00, 0xffff55, 0x55ff55, 0xff5555];
+      const geo = new THREE.BoxGeometry(0.12, 0.12, 0.12);
+      const randColor = colors[Math.floor(Math.random() * colors.length)];
+      const mat = new THREE.MeshBasicMaterial({ color: randColor });
+      const mesh = new THREE.Mesh(geo, mat);
+      
+      // Spawn slightly above the animal
+      mesh.position.set(
+        animalPos.x + (Math.random() - 0.5) * 0.5,
+        animalPos.y + 1.2 + Math.random() * 0.4,
+        animalPos.z + (Math.random() - 0.5) * 0.5
+      );
+      scene.add(mesh);
+
+      confettiParticles.push({
+        mesh: mesh,
+        vx: (Math.random() - 0.5) * 2,
+        vy: 2.0 + Math.random() * 2.0, // rise upwards
+        vz: (Math.random() - 0.5) * 2,
+        rx: (Math.random() - 0.5) * 5,
+        ry: (Math.random() - 0.5) * 5,
+        life: 0.8
+      });
+    }
+
+    // Spawns a celebration animal that runs alongside on word completed
+    function spawnCelebrationAnimal() {
+      const types = ['cheetah', 'pig', 'sheep'];
+      const randomType = types[Math.floor(Math.random() * types.length)];
+      const animal = createCelebrationAnimal(randomType);
+      
+      // Pick Left or Right grass shoulder
+      const side = Math.random() > 0.5 ? 1 : -1;
+      const startX = side * (4.2 + Math.random() * 1.5);
+      
+      // Spawn behind the camera viewport and let it catch up
+      animal.group.position.set(startX, 0, 6);
+      animal.group.rotation.y = Math.PI; // Face forward (-Z direction)
+      
+      scene.add(animal.group);
+      
+      activeAnimals.push({
+        group: animal.group,
+        legs: animal.legs,
+        type: animal.type,
+        startX: startX,
+        targetZ: -1 + (Math.random() - 0.5) * 1.5, // Stay next to the car
+        currentZ: 6,
+        phase: Math.random() * 10,
+        state: 'running_in',
+        timer: 0,
+        speedFactor: 1.0 + Math.random() * 0.45,
+        celebrationDuration: 2.2 + Math.random() * 1.5
+      });
+    }
+
+    // Clean up active meshes
+    function cleanupAnimals() {
+      activeAnimals.forEach(animal => {
+        scene.remove(animal.group);
+        animal.group.traverse(child => {
+          if (child.isMesh) {
+            child.geometry.dispose();
+            if (Array.isArray(child.material)) {
+              child.material.forEach(m => m.dispose());
+            } else if (child.material) {
+              child.material.dispose();
+            }
+          }
+        });
+      });
+      activeAnimals.length = 0;
+    }
+
+    function cleanupParticles() {
+      smokeParticles.forEach(p => {
+        scene.remove(p.mesh);
+        p.mesh.geometry.dispose();
+        p.mesh.material.dispose();
+      });
+      smokeParticles.length = 0;
+
+      confettiParticles.forEach(p => {
+        scene.remove(p.mesh);
+        p.mesh.geometry.dispose();
+        p.mesh.material.dispose();
+      });
+      confettiParticles.length = 0;
+    }
+
+    // --- 10. Engine Graphics Initializer ---
+    function initEngine3D() {
+      canvasContainer = document.getElementById('canvas-container');
+      const width = canvasContainer.clientWidth;
+      const height = canvasContainer.clientHeight;
+
+      // Set up scene
+      scene = new THREE.Scene();
+      scene.background = new THREE.Color(0x80c0ff); // Light blue horizon sky
+      scene.fog = new THREE.FogExp2(0x80c0ff, 0.012); // blocky depth fade
+
+      // Set up camera
+      camera = new THREE.PerspectiveCamera(60, width / height, 0.1, 1000);
+      // Behind & above looking down road
+      camera.position.set(0, 3.2, 5.5);
+      camera.lookAt(0, 1.2, -3.5);
+
+      // Set up renderer
+      renderer = new THREE.WebGLRenderer({ antialias: false }); // Pixel aesthetic looks crisper without AA
+      renderer.setSize(width, height);
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      canvasContainer.appendChild(renderer.domElement);
+
+      // Lighting: Warm sun and fill lights
+      const sunLight = new THREE.DirectionalLight(0xffffff, 0.95);
+      sunLight.position.set(10, 20, 10);
+      scene.add(sunLight);
+
+      const ambientLight = new THREE.AmbientLight(0xfff5e6, 0.65); // Warm environment base
+      scene.add(ambientLight);
+
+      // Create textures
+      initGenerativeTextures();
+
+      // Shared Materials
+      trunkMat = new THREE.MeshLambertMaterial({ map: trunkTexture });
+      leavesMat = new THREE.MeshLambertMaterial({ map: leavesTexture });
+
+      // Generate the initial track segment groups
+      for (let i = 0; i < numSegments; i++) {
+        // Place segments at Z coordinates: +10, 0, -10, -20, ... -80
+        const zPos = 10 - i * segmentLength;
+        buildTrackSegment(zPos, i);
+      }
+
+      // Build the primary racing car
+      buildCar();
+    }
+
+    // --- 11. Gameplay Logic & Handlers ---
+    function setMode(mode, btn) {
+      currentMode = mode;
+      document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      btn.blur(); // Blur button to keep keyboard listener focused!
+      selectNewWord();
+    }
+
+    function selectNewWord() {
+      const list = WORD_LISTS[currentMode];
+      let newWord = currentWord;
+      
+      // Pick a fresh word ensuring it's not the exact same consecutively if list is long
+      if (list.length > 1) {
+        while (newWord === currentWord) {
+          newWord = list[Math.floor(Math.random() * list.length)];
+        }
+      } else {
+        newWord = list[0];
+      }
+
+      currentWord = newWord;
+      currentIndex = 0;
+
+      updateWordBubble();
+      highlightNextKey();
+    }
+
+    // Paint word characters with gorgeous HTML/CSS colors
+    function updateWordBubble() {
+      const bubbleEl = document.getElementById('word-bubble');
+      if (!bubbleEl) return;
+
+      bubbleEl.innerHTML = '';
+      for (let i = 0; i < currentWord.length; i++) {
+        const span = document.createElement('span');
+        span.textContent = currentWord[i];
+        if (i < currentIndex) {
+          span.className = 'char-typed';
+        } else if (i === currentIndex) {
+          span.className = 'char-target';
+          if (typoState) {
+            span.classList.add('char-typo');
+          }
+        } else {
+          span.className = 'char-upcoming';
+        }
+        bubbleEl.appendChild(span);
+      }
+    }
+
+    // Trigger visual highlights of next key on screen and mini-hands
+    function highlightNextKey() {
+      document.querySelectorAll('.key').forEach(el => el.classList.remove('target-key'));
+      document.querySelectorAll('.finger').forEach(el => el.classList.remove('active-finger'));
+
+      if (currentIndex >= currentWord.length) return;
+
+      const targetChar = currentWord[currentIndex].toUpperCase();
+      const keyEl = document.querySelector(`.key[data-key="${targetChar}"]`);
+      if (keyEl) {
+        keyEl.classList.add('target-key');
+      }
+
+      // Update instructions on screen
+      const config = fingerConfig[targetChar];
+      const fingerHintEl = document.getElementById('finger-hint');
+      
+      if (config) {
+        fingerHintEl.textContent = `👉 Use your: ${config.label}!`;
+        fingerHintEl.style.color = config.color;
+
+        // Blinking finger animation on hands graphic
+        const fingerEl = document.querySelector(`.finger.${config.finger}`);
+        if (fingerEl) {
+          fingerEl.classList.add('active-finger');
+        }
+      } else {
+        fingerHintEl.textContent = "Type the letter above!";
+        fingerHintEl.style.color = '#fff';
+      }
+    }
+
+    function triggerTypo() {
+      typos++;
+      combo = 0;
+      typoState = true;
+      updateStats();
+
+      // Shake word bubble
+      const bubbleEl = document.getElementById('word-bubble');
+      bubbleEl.classList.remove('bubble-shake');
+      void bubbleEl.offsetWidth; // Force CSS reflow
+      bubbleEl.classList.add('bubble-shake');
+
+      playTypo();
+      updateWordBubble();
+
+      // Revert red highlight shortly after
+      setTimeout(() => {
+        typoState = false;
+        updateWordBubble();
+      }, 350);
+    }
+
+    function onWordCompleted() {
+      wordsTyped++;
+      
+      // Complete Bonus: 100 points + combo multi
+      score += 100 + (combo * 5);
+      
+      playWordComplete();
+      spawnConfettiExplosion();
+      spawnCelebrationAnimal(); // SUMMON ANIMAL CELEBRATION!
+      updateStats();
+
+      // Brief flash bubble green
+      const bubbleEl = document.getElementById('word-bubble');
+      bubbleEl.style.borderColor = '#55ff55';
+      bubbleEl.style.backgroundColor = 'rgba(0, 120, 0, 0.9)';
+
+      setTimeout(() => {
+        bubbleEl.style.borderColor = '';
+        bubbleEl.style.backgroundColor = '';
+        selectNewWord();
+      }, 250);
+    }
+
+    function updateStats() {
+      // Calculate accuracy
+      let accuracy = 100;
+      if (totalKeystrokes > 0) {
+        accuracy = Math.round(((totalKeystrokes - typos) / totalKeystrokes) * 100);
+      }
+      if (accuracy < 0) accuracy = 0;
+
+      // format score with 5 digits
+      const padScore = String(score).padStart(5, '0');
+
+      document.getElementById('score-val').textContent = padScore;
+      document.getElementById('words-val').textContent = wordsTyped;
+      document.getElementById('accuracy-val').textContent = accuracy + "%";
+    }
+
+    // rolling WPM tracking
+    function updateRollingWPM() {
+      const now = Date.now();
+      // Remove hits older than 8 seconds
+      recentKeystrokes = recentKeystrokes.filter(t => now - t < 8000);
+      
+      // Rolling WPM equation
+      const rawWPM = recentKeystrokes.length * 1.5;
+      
+      // Smooth lerp WPM transition
+      rollingWPM += (rawWPM - rollingWPM) * 0.05;
+      if (rollingWPM < 0.1) rollingWPM = 0;
+
+      document.getElementById('wpm-val').textContent = Math.round(rollingWPM) + " WPM";
+      checkMilestones(rollingWPM);
+    }
+
+    // Speed Milestone Checks
+    let currentMilestone = "CRUISING 🚙";
+    function checkMilestones(wpm) {
+      let milestone = "CRUISING 🚙";
+      let color = "#55ff55"; // Green
+      
+      if (wpm >= 30) {
+        milestone = "SUPER FAST! 🔥";
+        color = "#ff5555"; // Red
+      } else if (wpm >= 20) {
+        milestone = "ZOOMING! 🚀";
+        color = "#ffaa00"; // Orange
+      } else if (wpm >= 10) {
+        milestone = "SPEEDY! ⚡";
+        color = "#ffff55"; // Yellow
+      }
+
+      const label = document.getElementById('speed-milestone');
+      if (label) {
+        label.textContent = milestone;
+        label.style.color = color;
+      }
+
+      if (milestone !== currentMilestone) {
+        // Show milestone banner if speed went up
+        if (milestone !== "CRUISING 🚙") {
+          showPopupBanner(milestone, color);
+        }
+        currentMilestone = milestone;
+      }
+    }
+
+    function showPopupBanner(text, color) {
+      const banner = document.getElementById('milestone-popup');
+      if (!banner) return;
+      banner.textContent = text;
+      banner.style.color = color;
+      banner.classList.add('show');
+
+      if (window.bannerTimeout) clearTimeout(window.bannerTimeout);
+      window.bannerTimeout = setTimeout(() => {
+        banner.classList.remove('show');
+      }, 1500);
+    }
+
+    // Color-code the virtual keyboard matching key data-key to fingerConfig colors
+    function initKeyboardColors() {
+      const keys = document.querySelectorAll('.key');
+      keys.forEach(keyEl => {
+        const keyVal = keyEl.getAttribute('data-key');
+        if (fingerConfig[keyVal]) {
+          keyEl.style.backgroundColor = fingerConfig[keyVal].color;
+        } else {
+          keyEl.style.backgroundColor = '#e9ecef';
+        }
+      });
+    }
+
+    // End Round / Show Game Over Screen
+    function showGameOverScreen() {
+      gameStarted = false;
+      stopBackgroundMusic();
+      if (timerInterval) clearInterval(timerInterval);
+      
+      // Stop the car
+      carSpeed = 0;
+      rollingWPM = 0;
+      
+      let accuracy = 100;
+      if (totalKeystrokes > 0) {
+        accuracy = Math.round(((totalKeystrokes - typos) / totalKeystrokes) * 100);
+      }
+      if (accuracy < 0) accuracy = 0;
+      
+      // Calculate average speed in WPM
+      // Since it's a 60-second round, avgWPM is the total correct keystrokes divided by 5!
+      const correctKeystrokes = totalKeystrokes - typos;
+      const avgWPM = Math.max(0, Math.round(correctKeystrokes / 5));
+      
+      const overlay = document.getElementById('start-overlay');
+      if (overlay) {
+        overlay.style.display = 'flex';
+        overlay.innerHTML = `
+          <div class="title-box">
+            <div class="title-main" style="color: #ffff55; font-size: 28px;">RACE FINISHED! 🏁</div>
+            <div class="title-sub" style="color: #55ff55; font-size: 12px; margin-top: 8px;">GREAT DRIVING!</div>
+          </div>
+          
+          <div class="instructions-card shadow-inset" style="max-width: 500px; text-align: center; background-color: #2c2c2c; border: 4px solid; border-color: #555 #1a1a1a #1a1a1a #555; padding: 20px; box-sizing: border-box;">
+            <h3 style="color: #ffaa00; font-size: 14px; margin-top: 0; margin-bottom: 16px; border-bottom: 3px solid #555; padding-bottom: 8px;">YOUR RACING STATS</h3>
+            <p style="font-size: 12px; margin: 12px 0; color: #fff; text-align: left; display: flex; justify-content: space-between;"><span>🏆 FINAL SCORE:</span> <span style="color: #ffff55; font-weight:bold;">${score}</span></p>
+            <p style="font-size: 12px; margin: 12px 0; color: #fff; text-align: left; display: flex; justify-content: space-between;"><span>🏎️ TYPING SPEED:</span> <span style="color: #ffff55; font-weight:bold;">${avgWPM} WPM</span></p>
+            <p style="font-size: 12px; margin: 12px 0; color: #fff; text-align: left; display: flex; justify-content: space-between;"><span>🎯 ACCURACY:</span> <span style="color: #55ff55; font-weight:bold;">${accuracy}%</span></p>
+            <p style="font-size: 12px; margin: 12px 0; color: #fff; text-align: left; display: flex; justify-content: space-between;"><span>🦁 ANIMALS SUMMONED:</span> <span style="color: #ff55ff; font-weight:bold;">${wordsTyped}</span></p>
+            <p style="font-size: 12px; margin: 12px 0; color: #fff; text-align: left; display: flex; justify-content: space-between;"><span>❌ TYPOS:</span> <span style="color: #ff5555; font-weight:bold;">${typos}</span></p>
+          </div>
+          
+          <div class="start-hint" style="font-size: 12px; margin-top: 15px; color: #55ff55; animation: blink 0.8s infinite alternate;">CLICK HERE or PRESS ANY KEY TO RACE AGAIN!</div>
+        `;
+      }
+      
+      playGameOverSound();
+    }
+
+    // Begin Gameplay from click overlay
+    function startGame() {
+      if (gameStarted) return;
+      
+      const overlay = document.getElementById('start-overlay');
+      if (overlay) overlay.style.display = 'none';
+
+      stopBackgroundMusic();
+      initAudio();
+      gameStarted = true;
+
+      // Reset stats for fresh round
+      score = 0;
+      combo = 0;
+      wordsTyped = 0;
+      typos = 0;
+      totalKeystrokes = 0;
+      rollingWPM = 0;
+      recentKeystrokes = [];
+      typoState = false;
+      timeLeft = 60;
+      
+      cleanupAnimals();
+      cleanupParticles();
+      updateStats();
+
+      // Initialize timer UI
+      const timerLabel = document.getElementById('timer-label');
+      const timerFill = document.getElementById('progress-bar-fill');
+      if (timerLabel) timerLabel.textContent = `TIME LEFT: ${timeLeft}s`;
+      if (timerFill) {
+        timerFill.style.width = '100%';
+        timerFill.style.backgroundColor = '#55ff55';
+      }
+
+      // Start 60-second countdown interval
+      if (timerInterval) clearInterval(timerInterval);
+      timerInterval = setInterval(() => {
+        if (!gameStarted) return;
+        timeLeft--;
+        
+        // Update UI timer values
+        if (timerLabel) timerLabel.textContent = `TIME LEFT: ${timeLeft}s`;
+        if (timerFill) {
+          const pct = (timeLeft / 60) * 100;
+          timerFill.style.width = `${pct}%`;
+          
+          // Color transitions
+          if (timeLeft > 30) {
+            timerFill.style.backgroundColor = '#55ff55'; // green
+          } else if (timeLeft > 15) {
+            timerFill.style.backgroundColor = '#ffff55'; // yellow
+          } else {
+            timerFill.style.backgroundColor = '#ff5555'; // red
+            // Minecraft low-health flash
+            if (timeLeft % 2 === 0) {
+              timerFill.style.backgroundColor = '#ff8888';
+            }
+          }
+        }
+        
+        if (timeLeft <= 0) {
+          clearInterval(timerInterval);
+          showGameOverScreen();
+        }
+      }, 1000);
+
+      // Start by picking a word
+      selectNewWord();
+      startBackgroundMusic();
+      playWordComplete();
+    }
+
+    // --- 12. Frame Loop & Animation Updates ---
+    let lastTime = performance.now();
+
+    function updateFrame(time) {
+      requestAnimationFrame(updateFrame);
+
+      const dt = Math.min((time - lastTime) / 1000, 0.1); // Clamp dt to prevent massive frame jumps
+      lastTime = time;
+
+      // 1. Smoothly interpolate driving speed based on rolling typing speed
+      const targetSpeed = Math.min(rollingWPM / 32, 1.0) * maxSpeed;
+      carSpeed += (targetSpeed - carSpeed) * dt * 3.0; // Lerp acceleration
+
+      // 2. Infinite Loop Scenery Scroll
+      const zOffset = carSpeed * dt;
+      segmentGroups.forEach(seg => {
+        seg.position.z += zOffset;
+        
+        // When a segment travels fully behind camera view (Z = +15), push it back to the far start (Z = -85)
+        if (seg.position.z > 15) {
+          seg.position.z -= numSegments * segmentLength;
+          // Scramble elements slightly for endless variety
+          randomizeSegmentScenery(seg);
+        }
+      });
+
+      // 3. Wheel Rotations (spinning directly related to car speed)
+      if (carGroup && wheelFL) {
+        const rotationSpeed = carSpeed * dt * 4.0;
+        wheelFL.rotation.x -= rotationSpeed;
+        wheelFR.rotation.x -= rotationSpeed;
+        wheelRL.rotation.x -= rotationSpeed;
+        wheelRR.rotation.x -= rotationSpeed;
+
+        // Engine rumble bounce
+        if (carSpeed > 0.1) {
+          carGroup.position.y = Math.sin(time * 0.02) * 0.03 * (carSpeed / maxSpeed);
+          // Very slight chassis forward tilt on acceleration/deceleration
+          const tiltFactor = (targetSpeed - carSpeed) * 0.012;
+          carGroup.rotation.x = THREE.MathUtils.lerp(carGroup.rotation.x, tiltFactor, 0.1);
+        } else {
+          carGroup.position.y = 0;
+          carGroup.rotation.x = THREE.MathUtils.lerp(carGroup.rotation.x, 0, 0.1);
+        }
+      }
+
+      // 4. Exhaust smoke generation rates based on speed
+      if (gameStarted && carSpeed > 1.0) {
+        // Higher speed generates smoke puffs more frequently
+        if (Math.random() < carSpeed * 0.012) {
+          spawnExhaustSmoke();
+        }
+      }
+
+      // 5. Update Smoke Particles (rising and drifting backward)
+      for (let i = smokeParticles.length - 1; i >= 0; i--) {
+        const p = smokeParticles[i];
+        p.mesh.position.x += p.vx * dt;
+        p.mesh.position.y += p.vy * dt;
+        p.mesh.position.z += p.vz * dt;
+        
+        p.life -= dt * 1.6;
+        p.mesh.material.opacity = p.life * 0.75;
+        p.mesh.scale.setScalar(p.life);
+        
+        if (p.life <= 0) {
+          scene.remove(p.mesh);
+          p.mesh.geometry.dispose();
+          p.mesh.material.dispose();
+          smokeParticles.splice(i, 1);
+        }
+      }
+
+      // 6. Update Word Completed Confetti Particles
+      for (let i = confettiParticles.length - 1; i >= 0; i--) {
+        const p = confettiParticles[i];
+        p.mesh.position.x += p.vx * dt;
+        p.mesh.position.y += p.vy * dt;
+        p.mesh.position.z += p.vz * dt;
+        p.vy -= 9.81 * dt; // Gravity pull
+
+        p.mesh.rotation.x += p.rx * dt;
+        p.mesh.rotation.y += p.ry * dt;
+
+        p.life -= dt;
+        if (p.life <= 0 || p.mesh.position.y < -0.4) {
+          scene.remove(p.mesh);
+          p.mesh.geometry.dispose();
+          p.mesh.material.dispose();
+          confettiParticles.splice(i, 1);
+        }
+      }
+
+      // 6b. Update Celebration Animals (riding parallel to car & performing hops/flips)
+      for (let i = activeAnimals.length - 1; i >= 0; i--) {
+        const animal = activeAnimals[i];
+        animal.timer += dt;
+        
+        let legSpeed = 16;
+        let jumpHeight = 0;
+        
+        if (animal.state === 'running_in') {
+          // Run in from behind the camera viewport
+          animal.currentZ -= dt * 15 * animal.speedFactor;
+          if (animal.currentZ <= animal.targetZ) {
+            animal.currentZ = animal.targetZ;
+            animal.state = 'celebrating';
+            animal.timer = 0;
+          }
+          legSpeed = 24;
+          jumpHeight = Math.abs(Math.sin(time * 0.012)) * 0.4;
+        } 
+        else if (animal.state === 'celebrating') {
+          // Celebrate side-by-side with player car
+          legSpeed = 12;
+          jumpHeight = Math.abs(Math.sin(time * 0.015)) * 0.6;
+          
+          // Face slightly towards the player car to look engaged!
+          const lookAngle = animal.startX < 0 ? Math.PI - 0.35 : Math.PI + 0.35;
+          animal.group.rotation.y = THREE.MathUtils.lerp(animal.group.rotation.y, lookAngle, 0.1);
+          
+          // Play victory spin flip in the final half-second before dashing off!
+          if (animal.timer > animal.celebrationDuration - 0.6) {
+            animal.group.rotation.y += dt * 15; // spin like crazy
+            jumpHeight = 1.3; // big vertical loop leap!
+          }
+          
+          // Spurt glowing decorative stars and hearts
+          if (Math.random() < 0.18) {
+            spawnAnimalCelebrationParticle(animal.group.position);
+          }
+          
+          if (animal.timer >= animal.celebrationDuration) {
+            animal.state = 'dashing';
+          }
+        } 
+        else if (animal.state === 'dashing') {
+          // Run ahead of car extremely quickly
+          animal.currentZ -= dt * 28 * animal.speedFactor;
+          animal.group.rotation.y = THREE.MathUtils.lerp(animal.group.rotation.y, Math.PI, 0.2); // look straight forward
+          legSpeed = 34;
+          jumpHeight = Math.abs(Math.sin(time * 0.024)) * 0.35;
+          
+          if (animal.currentZ < -35) {
+            // Safely destroy resources
+            scene.remove(animal.group);
+            animal.group.traverse(child => {
+              if (child.isMesh) {
+                child.geometry.dispose();
+                if (Array.isArray(child.material)) {
+                  child.material.forEach(m => m.dispose());
+                } else if (child.material) {
+                  child.material.dispose();
+                }
+              }
+            });
+            activeAnimals.splice(i, 1);
+            continue;
+          }
+        }
+        
+        // Update 3D transforms
+        animal.group.position.set(animal.startX, jumpHeight, animal.currentZ);
+        
+        // Leg Swing Gait
+        const legSwing = Math.sin(time * 0.001 * legSpeed * animal.speedFactor) * 0.65;
+        if (animal.legs.fl) {
+          animal.legs.fl.rotation.x = legSwing;
+          animal.legs.br.rotation.x = legSwing;
+          animal.legs.fr.rotation.x = -legSwing;
+          animal.legs.bl.rotation.x = -legSwing;
+        }
+      }
+
+      // 7. Reactive FOV and light Camera Shake at high zoom velocities
+      if (camera) {
+        camera.fov = 60 + (carSpeed / maxSpeed) * 12;
+        camera.updateProjectionMatrix();
+
+        // High velocity jitter
+        if (carSpeed > 8.0) {
+          const jitter = (carSpeed / maxSpeed) * 0.015;
+          camera.position.x = (Math.random() - 0.5) * jitter;
+          camera.position.y = 3.2 + (Math.random() - 0.5) * jitter;
+        } else {
+          camera.position.x = 0;
+          camera.position.y = 3.2;
+        }
+      }
+
+      // 8. Track rolling typing speed over sliding window
+      updateRollingWPM();
+
+      // 9. Sync floating 3D word bubble position to car roof coordinates
+      if (carGroup && camera) {
+        const roofVector = new THREE.Vector3(0, 2.3, 0);
+        carGroup.localToWorld(roofVector);
+        roofVector.project(camera);
+
+        const x = (roofVector.x * 0.5 + 0.5) * canvasContainer.clientWidth;
+        const y = (-(roofVector.y * 0.5) + 0.5) * canvasContainer.clientHeight;
+
+        const bubbleEl = document.getElementById('word-bubble');
+        if (bubbleEl) {
+          bubbleEl.style.left = `${x}px`;
+          bubbleEl.style.top = `${Math.max(y + 70, 230)}px`;
+        }
+      }
+
+      // 10. Render Frame
+      renderer.render(scene, camera);
+    }
+
+    // --- 13. System Input Listeners & Keyboard Handler ---
+    window.addEventListener('keydown', (e) => {
+      // Trigger game onset on initial keydown
+      if (!gameStarted) {
+        startGame();
+        return;
+      }
+
+      const key = e.key.toUpperCase();
+
+      // Block typical default keys (Space, Tab, Backspace) to maintain full gameplay focus
+      if (['BACKSPACE', 'TAB', ' ', 'ARROWUP', 'ARROWDOWN', 'ARROWLEFT', 'ARROWRIGHT'].includes(key)) {
+        e.preventDefault();
+      }
+
+      initAudio();
+
+      if (currentIndex < currentWord.length) {
+        const targetChar = currentWord[currentIndex].toUpperCase();
+
+        if (key === targetChar) {
+          // Success Keystroke
+          currentIndex++;
+          score += 10 + combo;
+          combo++;
+          recentKeystrokes.push(Date.now());
+          totalKeystrokes++;
+
+          playClick();
+          spawnExhaustSmoke();
+
+          // Physical keypress press scale animation
+          const keyEl = document.querySelector(`.key[data-key="${key}"]`);
+          if (keyEl) {
+            keyEl.style.transform = 'scale(0.88)';
+            setTimeout(() => keyEl.style.transform = '', 50);
+          }
+
+          if (currentIndex === currentWord.length) {
+            onWordCompleted();
+          } else {
+            updateWordBubble();
+            highlightNextKey();
+          }
+        } else {
+          // Failure Keystroke (Typo) - disregard function modifiers like Shift/Ctrl/Alt
+          if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
+            totalKeystrokes++;
+            triggerTypo();
+          }
+        }
+      }
+    });
+
+    // Resize container callback
+    window.addEventListener('resize', () => {
+      if (!camera || !renderer || !canvasContainer) return;
+      const width = canvasContainer.clientWidth;
+      const height = canvasContainer.clientHeight;
+      camera.aspect = width / height;
+      camera.updateProjectionMatrix();
+      renderer.setSize(width, height);
+    });
+
+    // Initialize entire system
+    window.onload = () => {
+      // Save startup instruction card layout for potential reuse
+      originalOverlayHTML = document.getElementById('start-overlay').innerHTML;
+
+      initEngine3D();
+      initKeyboardColors();
+      
+      // Paint word placeholder prior to start
+      const bubbleEl = document.getElementById('word-bubble');
+      bubbleEl.innerHTML = '<span class="char-upcoming">READY</span>';
+
+      // Setup initial timer UI elements
+      const timerLabel = document.getElementById('timer-label');
+      const timerFill = document.getElementById('progress-bar-fill');
+      if (timerLabel) timerLabel.textContent = `TIME LEFT: 60s`;
+      if (timerFill) {
+        timerFill.style.width = '100%';
+        timerFill.style.backgroundColor = '#55ff55';
+      }
+      
+      // Kick off loops
+      requestAnimationFrame(updateFrame);
+    };
+  </script>
+</body>
+</html>

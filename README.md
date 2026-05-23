@@ -4,4 +4,4 @@ A Minecraft-style typing game built as a single HTML file.
 
 ## Run locally
 
-Open `index.html` in a browser.
+Open `pixel-typing-game.html` in a browser.
