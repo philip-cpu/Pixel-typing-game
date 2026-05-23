@@ -1,7 +1,7 @@
-# Typing Racer
+# Pixel Typing Game
 
 A Minecraft-style typing game built as a single HTML file.
 
 ## Run locally
 
-Open `typing-racer.html` in a browser.
+Open `index.html` in a browser.
