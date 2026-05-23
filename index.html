@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Air-Gapped Code Wallet Transaction Flow</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            margin: 20px;
+            background-color: #f4f4f9;
+            color: #333;
+        }
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            background: #fff;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+        .language-toggle {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 20px;
+        }
+        .language-toggle button {
+            background-color: #0056b3;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            margin: 0 5px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 1em;
+            transition: background-color 0.3s;
+        }
+        .language-toggle button.active {
+            background-color: #003d82;
+        }
+        .language-toggle button:hover {
+            background-color: #003d82;
+        }
+        h1 {
+            text-align: center;
+            color: #0056b3;
+            margin-bottom: 40px;
+        }
+        .flow-step {
+            display: flex;
+            margin-bottom: 40px;
+            align-items: flex-start;
+        }
+        .step-icon {
+            flex-shrink: 0;
+            width: 80px;
+            height: 80px;
+            background-color: #007bff;
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 2em;
+            font-weight: bold;
+            margin-right: 30px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+        }
+        .step-content {
+            flex-grow: 1;
+        }
+        .step-content h2 {
+            color: #333;
+            margin-top: 0;
+        }
+        .step-content p {
+            margin-bottom: 15px;
+        }
+        .detail-box {
+            background-color: #e9ecef;
+            padding: 15px;
+            border-radius: 5px;
+            border-left: 5px solid #0056b3;
+            margin-top: 10px;
+        }
+        .phase-title {
+            font-size: 1.5em;
+            font-weight: bold;
+            color: #d9534f; /* Reddish for warning/secure element */
+            margin-bottom: 10px;
+        }
+        .logo-container {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 20px;
+        }
+        .cat-logo {
+            width: 80px;
+            height: 80px;
+            filter: drop-shadow(0 2px 4px rgba(0,0,0,0.1));
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="logo-container">
+            <svg class="cat-logo" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+                <!-- Ears -->
+                <path d="M25 45 L15 20 L40 35 Z" fill="#FFD1DC" />
+                <path d="M75 45 L85 20 L60 35 Z" fill="#FFD1DC" />
+                <!-- Head -->
+                <circle cx="50" cy="55" r="35" fill="#FFD1DC" />
+                <!-- Eyes -->
+                <circle cx="40" cy="50" r="3" fill="#333" />
+                <circle cx="60" cy="50" r="3" fill="#333" />
+                <!-- Nose -->
+                <path d="M48 60 L52 60 L50 63 Z" fill="#FF9999" />
+                <!-- Mouth -->
+                <path d="M45 65 Q50 70 55 65" stroke="#333" stroke-width="2" fill="none" stroke-linecap="round" />
+                <!-- Whiskers -->
+                <line x1="30" y1="60" x2="15" y2="58" stroke="#333" stroke-width="1" />
+                <line x1="30" y1="65" x2="15" y2="67" stroke="#333" stroke-width="1" />
+                <line x1="70" y1="60" x2="85" y2="58" stroke="#333" stroke-width="1" />
+                <line x1="70" y1="65" x2="85" y2="67" stroke="#333" stroke-width="1" />
+            </svg>
+        </div>
+        <div class="language-toggle">
+            <button id="enBtn" class="active" onclick="switchLanguage('en')">English</button>
+            <button id="zhBtn" onclick="switchLanguage('zh')">繁體中文</button>
+        </div>
+
+        <h1 id="title">✈️ Air-Gapped Code Wallet Transaction Flow</h1>
+        <p id="intro">This guide outlines the highly secure, offline process of initiating a crypto transaction using a specialized Hardware Security Module (HSM) in an air-gapped environment, minimizing external exposure and maximizing security.</p>
+
+        <!-- STEP 1: Initiation (Online/Untrusted Device) -->
+        <div class="flow-step">
+            <div class="step-icon">1</div>
+            <div class="step-content">
+                <h2 id="step1-title">1. Transaction Initiation (Workstation)</h2>
+                <p id="step1-desc">The user starts the transaction on a machine that may be connected to the internet (Workstation).</p>
+                <div class="detail-box">
+                    <strong id="step1-action">Action:</strong> <span id="step1-action-text">The user generates the transaction payload (recipient address, amount, fee).</span><br>
+                    <strong id="step1-output">Output:</strong> <span id="step1-output-text">A simple, non-sensitive text file containing the raw transaction data (e.g., JSON or simple hex format).</span><br>
+                    <strong id="step1-security">Security Point:</strong> <span id="step1-security-text">The private key *never* leaves this device.</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- STEP 2: Transfer (Physical Media) -->
+        <div class="flow-step">
+            <div class="step-icon">2</div>
+            <div class="step-content">
+                <h2 id="step2-title">2. Physical Transfer (Air Gap)</h2>
+                <p id="step2-desc">The critical step of transferring data across the air gap. No network connection is used.</p>
+                <div class="detail-box">
+                    <div class="phase-title" id="step2-warning">🛑 AIR GAP BREACH POINT 🛑</div>
+                    <p id="step2-content">The user copies the raw transaction file from the Workstation onto a dedicated, sanitized physical medium (e.g., a USB drive).</p>
+                    <strong id="step2-protocol">Protocol:</strong> <span id="step2-protocol-text">The medium is physically carried to the isolated network segment. The medium must be verified for malware before use.</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- STEP 3: Isolated Environment (HSM Interaction) -->
+        <div class="flow-step">
+            <div class="step-icon">3</div>
+            <div class="step-content">
+                <h2 id="step3-title">3. HSM Processing (Isolated Network)</h2>
+                <p id="step3-desc">The dedicated machine connected to the HSM processes the transaction in complete isolation.</p>
+                <div class="detail-box">
+                    <strong id="step3-action">Action:</strong>
+                    <ol>
+                        <li id="step3-li1">The operator loads the transaction payload from the USB drive into the isolated device.</li>
+                        <li id="step3-li2">The HSM is prompted to sign the raw transaction data.</li>
+                        <li><strong id="step3-li3-strong">M-of-N Security:</strong> <span id="step3-li3-text">Multi-party control (M-of-N) is required. Multiple trusted individuals (M) must physically verify and approve the transaction details/signing process before the HSM will release the signature.</span></li>
+                    </ol>
+                    <strong id="step3-output">Output:</strong> <span id="step3-output-text">The HSM produces the cryptographically signed transaction package (the final, immutable proof).</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- STEP 4: Confirmation & Finalization (Physical Check) -->
+        <div class="flow-step">
+            <div class="step-icon">4</div>
+            <div class="step-content">
+                <h2 id="step4-title">4. Verification and Completion</h2>
+                <p id="step4-desc">The final, signed transaction is viewed and confirmed by all parties involved before being broadcast.</p>
+                <div class="detail-box">
+                    <strong id="step4-verification">Verification:</strong> <span id="step4-verification-text">All parties must physically verify the signature details, recipient address, and amount displayed on the isolated machine. </span><br>
+                    <strong id="step4-broadcast">Broadcast:</strong> <span id="step4-broadcast-text">Only once all physical checks pass, the signed transaction is copied onto a new, clean medium and transferred to the final network for broadcast.</span>
+                </div>
+                <p id="step4-summary" style="text-align: center; margin-top: 20px;">🔒 **Security Summary:** By enforcing physical separation and multi-person control, the attack surface is drastically reduced, ensuring that the private signing key never touches an untrusted network.</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const translations = {
+            en: {
+                title: "✈️ Air-Gapped Code Wallet Transaction Flow",
+                intro: "This guide outlines the highly secure, offline process of initiating a crypto transaction using a specialized Hardware Security Module (HSM) in an air-gapped environment, minimizing external exposure and maximizing security.",
+                step1Title: "1. Transaction Initiation (Workstation)",
+                step1Desc: "The user starts the transaction on a machine that may be connected to the internet (Workstation).",
+                step1Action: "Action:",
+                step1ActionText: "The user generates the transaction payload (recipient address, amount, fee).",
+                step1Output: "Output:",
+                step1OutputText: "A simple, non-sensitive text file containing the raw transaction data (e.g., JSON or simple hex format).",
+                step1Security: "Security Point:",
+                step1SecurityText: "The private key *never* leaves this device.",
+                step2Title: "2. Physical Transfer (Air Gap)",
+                step2Desc: "The critical step of transferring data across the air gap. No network connection is used.",
+                step2Warning: "🛑 AIR GAP BREACH POINT 🛑",
+                step2Content: "The user copies the raw transaction file from the Workstation onto a dedicated, sanitized physical medium (e.g., a USB drive).",
+                step2Protocol: "Protocol:",
+                step2ProtocolText: "The medium is physically carried to the isolated network segment. The medium must be verified for malware before use.",
+                step3Title: "3. HSM Processing (Isolated Network)",
+                step3Desc: "The dedicated machine connected to the HSM processes the transaction in complete isolation.",
+                step3Action: "Action:",
+                step3Li1: "The operator loads the transaction payload from the USB drive into the isolated device.",
+                step3Li2: "The HSM is prompted to sign the raw transaction data.",
+                step3Li3Strong: "M-of-N Security:",
+                step3Li3Text: "Multi-party control (M-of-N) is required. Multiple trusted individuals (M) must physically verify and approve the transaction details/signing process before the HSM will release the signature.",
+                step3Output: "Output:",
+                step3OutputText: "The HSM produces the cryptographically signed transaction package (the final, immutable proof).",
+                step4Title: "4. Verification and Completion",
+                step4Desc: "The final, signed transaction is viewed and confirmed by all parties involved before being broadcast.",
+                step4Verification: "Verification:",
+                step4VerificationText: "All parties must physically verify the signature details, recipient address, and amount displayed on the isolated machine. ",
+                step4Broadcast: "Broadcast:",
+                step4BroadcastText: "Only once all physical checks pass, the signed transaction is copied onto a new, clean medium and transferred to the final network for broadcast.",
+                step4Summary: "🔒 **Security Summary:** By enforcing physical separation and multi-person control, the attack surface is drastically reduced, ensuring that the private signing key never touches an untrusted network."
+            },
+            zh: {
+                title: "✈️ 離線代碼錢包交易流程",
+                intro: "本指南概述了使用專門的硬件安全模塊 (HSM) 在隔離環境中啟動加密交易的高度安全的離線流程，最大限度地減少外部暴露並最大化安全性。",
+                step1Title: "1. 交易啟動（工作站）",
+                step1Desc: "用戶在可能連接到互聯網的機器上啟動交易（工作站）。",
+                step1Action: "操作：",
+                step1ActionText: "用戶生成交易有效負載（收款人地址、金額、手續費）。",
+                step1Output: "輸出：",
+                step1OutputText: "包含原始交易數據的簡單、非敏感文本文件（例如 JSON 或簡單十六進制格式）。",
+                step1Security: "安全要點：",
+                step1SecurityText: "私鑰*絕不*離開此設備。",
+                step2Title: "2. 物理轉移（隔離區）",
+                step2Desc: "跨隔離區轉移數據的關鍵步驟。不使用網絡連接。",
+                step2Warning: "🛑 隔離區突破點 🛑",
+                step2Content: "用戶將原始交易文件從工作站複製到專用的、已清潔的物理介質上（例如 USB 驅動器）。",
+                step2Protocol: "協議：",
+                step2ProtocolText: "介質被物理地帶到隔離的網絡段。使用前必須驗證介質是否有惡意軟件。",
+                step3Title: "3. HSM 處理（隔離網絡）",
+                step3Desc: "連接到 HSM 的專用機器在完全隔離的環境中處理交易。",
+                step3Action: "操作：",
+                step3Li1: "操作員從 USB 驅動器加載交易有效負載到隔離設備中。",
+                step3Li2: "HSM 被提示簽署原始交易數據。",
+                step3Li3Strong: "M-of-N 安全性：",
+                step3Li3Text: "需要多方控制 (M-of-N)。多個受信方 (M) 必須物理驗證並批准交易詳情/簽署過程，才能使 HSM 發布簽名。",
+                step3Output: "輸出：",
+                step3OutputText: "HSM 生成密碼學簽名的交易包（最終的、不可改變的證明）。",
+                step4Title: "4. 驗證和完成",
+                step4Desc: "最終的、已簽名的交易由所有相關方查看和確認，然後才能廣播。",
+                step4Verification: "驗證：",
+                step4VerificationText: "所有方必須物理驗證在隔離機器上顯示的簽名詳情、收款人地址和金額。",
+                step4Broadcast: "廣播：",
+                step4BroadcastText: "只有在所有物理檢查通過後，才能將已簽名的交易複製到新的、乾淨的介質上，並轉移到最終網絡以進行廣播。",
+                step4Summary: "🔒 **安全摘要：** 通過強制物理隔離和多人控制，攻擊面大幅減少，確保私鑰永遠不會接觸到不受信任的網絡。"
+            }
+        };
+
+        function switchLanguage(lang) {
+            const elements = {
+                title: document.getElementById('title'),
+                intro: document.getElementById('intro'),
+                step1Title: document.getElementById('step1-title'),
+                step1Desc: document.getElementById('step1-desc'),
+                step1Action: document.getElementById('step1-action'),
+                step1ActionText: document.getElementById('step1-action-text'),
+                step1Output: document.getElementById('step1-output'),
+                step1OutputText: document.getElementById('step1-output-text'),
+                step1Security: document.getElementById('step1-security'),
+                step1SecurityText: document.getElementById('step1-security-text'),
+                step2Title: document.getElementById('step2-title'),
+                step2Desc: document.getElementById('step2-desc'),
+                step2Warning: document.getElementById('step2-warning'),
+                step2Content: document.getElementById('step2-content'),
+                step2Protocol: document.getElementById('step2-protocol'),
+                step2ProtocolText: document.getElementById('step2-protocol-text'),
+                step3Title: document.getElementById('step3-title'),
+                step3Desc: document.getElementById('step3-desc'),
+                step3Action: document.getElementById('step3-action'),
+                step3Li1: document.getElementById('step3-li1'),
+                step3Li2: document.getElementById('step3-li2'),
+                step3Li3Strong: document.getElementById('step3-li3-strong'),
+                step3Li3Text: document.getElementById('step3-li3-text'),
+                step3Output: document.getElementById('step3-output'),
+                step3OutputText: document.getElementById('step3-output-text'),
+                step4Title: document.getElementById('step4-title'),
+                step4Desc: document.getElementById('step4-desc'),
+                step4Verification: document.getElementById('step4-verification'),
+                step4VerificationText: document.getElementById('step4-verification-text'),
+                step4Broadcast: document.getElementById('step4-broadcast'),
+                step4BroadcastText: document.getElementById('step4-broadcast-text'),
+                step4Summary: document.getElementById('step4-summary')
+            };
+
+            const t = translations[lang];
+            elements.title.textContent = t.title;
+            elements.intro.textContent = t.intro;
+            elements.step1Title.textContent = t.step1Title;
+            elements.step1Desc.textContent = t.step1Desc;
+            elements.step1Action.textContent = t.step1Action;
+            elements.step1ActionText.textContent = t.step1ActionText;
+            elements.step1Output.textContent = t.step1Output;
+            elements.step1OutputText.textContent = t.step1OutputText;
+            elements.step1Security.textContent = t.step1Security;
+            elements.step1SecurityText.textContent = t.step1SecurityText;
+            elements.step2Title.textContent = t.step2Title;
+            elements.step2Desc.textContent = t.step2Desc;
+            elements.step2Warning.textContent = t.step2Warning;
+            elements.step2Content.textContent = t.step2Content;
+            elements.step2Protocol.textContent = t.step2Protocol;
+            elements.step2ProtocolText.textContent = t.step2ProtocolText;
+            elements.step3Title.textContent = t.step3Title;
+            elements.step3Desc.textContent = t.step3Desc;
+            elements.step3Action.textContent = t.step3Action;
+            elements.step3Li1.textContent = t.step3Li1;
+            elements.step3Li2.textContent = t.step3Li2;
+            elements.step3Li3Strong.textContent = t.step3Li3Strong;
+            elements.step3Li3Text.textContent = t.step3Li3Text;
+            elements.step3Output.textContent = t.step3Output;
+            elements.step3OutputText.textContent = t.step3OutputText;
+            elements.step4Title.textContent = t.step4Title;
+            elements.step4Desc.textContent = t.step4Desc;
+            elements.step4Verification.textContent = t.step4Verification;
+            elements.step4VerificationText.textContent = t.step4VerificationText;
+            elements.step4Broadcast.textContent = t.step4Broadcast;
+            elements.step4BroadcastText.textContent = t.step4BroadcastText;
+            elements.step4Summary.textContent = t.step4Summary;
+
+            // Update button states
+            document.getElementById('enBtn').classList.toggle('active', lang === 'en');
+            document.getElementById('zhBtn').classList.toggle('active', lang === 'zh');
+
+            // Save language preference
+            localStorage.setItem('preferredLanguage', lang);
+        }
+
+        // Load saved language preference on page load
+        window.addEventListener('load', function() {
+            const savedLang = localStorage.getItem('preferredLanguage') || 'en';
+            switchLanguage(savedLang);
+        });
+    </script>
+</body>
+</html>
